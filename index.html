@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>像素画缩小工具</title>
+<title>图片缩小工具</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -16,7 +16,8 @@
     align-items: center;
     padding: 20px;
   }
-  h1 { font-size: 20px; margin-bottom: 20px; color: #ffb347; }
+  h1 { font-size: 20px; margin-bottom: 8px; color: #ffb347; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
   .upload-area {
     width: 100%;
     max-width: 400px;
@@ -33,10 +34,10 @@
     max-width: 400px;
     display: none;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
   }
   .controls.show { display: flex; }
-  label { font-size: 14px; color: #ccc; }
+  label { font-size: 14px; color: #ccc; display: block; margin-bottom: 4px; }
   input[type="number"] {
     width: 100%;
     padding: 12px;
@@ -48,7 +49,48 @@
   }
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; }
-  button {
+  .mode-select {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .mode-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid #333;
+    background: #16213e;
+    color: #888;
+    font-size: 13px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn.active {
+    border-color: #ffb347;
+    background: rgba(255,179,71,0.15);
+    color: #ffb347;
+  }
+  .preset-row {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .preset-btn {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+    background: #16213e;
+    color: #ccc;
+    border: 1px solid #333;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .preset-btn.active {
+    background: rgba(255,179,71,0.15);
+    color: #ffb347;
+    border-color: #ffb347;
+  }
+  button.resize-btn {
     width: 100%;
     padding: 14px;
     border: none;
@@ -58,25 +100,37 @@
     font-size: 16px;
     font-weight: bold;
     cursor: pointer;
-    margin-top: 8px;
+    margin-top: 4px;
   }
-  button:active { background: #ffa030; }
+  button.resize-btn:active { background: #ffa030; }
   .preview { width: 100%; max-width: 400px; margin-top: 16px; display: none; }
   .preview.show { display: block; }
-  .preview img {
-    width: 100%;
-    image-rendering: pixelated;
+  .preview-box {
+    background: #16213e;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .preview-item { text-align: center; flex: 1; }
+  .preview-item img {
+    max-width: 100%;
     border-radius: 8px;
     border: 1px solid #333;
   }
+  .preview-item .label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .preview-item .dim { font-size: 11px; color: #666; margin-top: 4px; }
   .info { font-size: 12px; color: #888; margin-top: 8px; }
   #download { display: none; }
   #download.show { display: block; }
+  .tip { font-size: 12px; color: #666; margin-top: 6px; }
 </style>
 </head>
 <body>
 
-<h1>🎨 像素画缩小工具</h1>
+<h1>🎨 图片缩小工具</h1>
+<p class="subtitle">大图也能缩！两种模式可选</p>
 
 <div class="upload-area" id="uploadArea">
   <p>📁 点击选择图片</p>
@@ -85,42 +139,76 @@
 </div>
 
 <div class="controls" id="controls">
+  <div>
+    <label>缩放模式</label>
+    <div class="mode-select">
+      <div class="mode-btn active" id="modeSmooth" onclick="setMode('smooth')">平滑缩小<br><span style="font-size:11px;color:#666">大图缩小不糊</span></div>
+      <div class="mode-btn" id="modePixel" onclick="setMode('pixel')">像素画缩小<br><span style="font-size:11px;color:#666">保留像素边</span></div>
+    </div>
+  </div>
+
+  <div>
+    <label>目标尺寸</label>
+    <div class="preset-row">
+      <div class="preset-btn" onclick="setSize(32,32)">32</div>
+      <div class="preset-btn" onclick="setSize(64,64)">64</div>
+      <div class="preset-btn active" onclick="setSize(96,96)">96</div>
+      <div class="preset-btn" onclick="setSize(128,128)">128</div>
+      <div class="preset-btn" onclick="setSize(256,256)">256</div>
+      <div class="preset-btn" onclick="setSize(512,512)">512</div>
+    </div>
+  </div>
+
   <div class="row">
     <div>
-      <label>宽度</label>
-      <input type="number" id="width" value="64" min="1">
+      <label>宽度 (px)</label>
+      <input type="number" id="width" value="96" min="1">
     </div>
     <div>
-      <label>高度</label>
-      <input type="number" id="height" value="64" min="1">
+      <label>高度 (px)</label>
+      <input type="number" id="height" value="96" min="1">
     </div>
   </div>
-  <label>预设尺寸：</label>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button onclick="setSize(16,16)" style="width:auto;padding:8px 14px;font-size:13px">16</button>
-    <button onclick="setSize(32,32)" style="width:auto;padding:8px 14px;font-size:13px">32</button>
-    <button onclick="setSize(64,64)" style="width:auto;padding:8px 14px;font-size:13px">64</button>
-    <button onclick="setSize(128,128)" style="width:auto;padding:8px 14px;font-size:13px">128</button>
-    <button onclick="setSize(256,256)" style="width:auto;padding:8px 14px;font-size:13px">256</button>
-  </div>
-  <button id="resizeBtn" onclick="doResize()">缩小！</button>
+
+  <button class="resize-btn" onclick="doResize()">✨ 缩小！</button>
 </div>
 
 <div class="preview" id="preview">
-  <p style="margin-bottom:8px">✅ 缩小完成！</p>
-  <img id="resultImg">
+  <div class="preview-box">
+    <div class="preview-item">
+      <div class="label">原图</div>
+      <img id="origImg" style="max-height:150px;image-rendering:auto">
+      <div class="dim" id="origDim"></div>
+    </div>
+    <div class="preview-item">
+      <div class="label">缩小后</div>
+      <img id="resultImg" style="image-rendering:auto">
+      <div class="dim" id="resultDim"></div>
+    </div>
+  </div>
   <p class="info" id="resultInfo"></p>
   <a id="download" href="#" download="resized.png">
-    <button style="margin-top:12px">⬇️ 保存图片</button>
+    <button class="resize-btn" style="margin-top:12px">⬇️ 保存图片</button>
   </a>
 </div>
 
 <script>
 let originalImg = null;
+let currentMode = 'smooth';
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('modeSmooth').classList.toggle('active', mode === 'smooth');
+  document.getElementById('modePixel').classList.toggle('active', mode === 'pixel');
+}
 
 function setSize(w, h) {
   document.getElementById('width').value = w;
   document.getElementById('height').value = h;
+  document.querySelectorAll('.preset-btn').forEach(function(btn) {
+    btn.classList.remove('active');
+  });
+  event.target.classList.add('active');
 }
 
 document.getElementById('uploadArea').addEventListener('click', function() {
@@ -135,10 +223,10 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
     const img = new Image();
     img.onload = function() {
       originalImg = img;
-      document.getElementById('width').value = img.width;
-      document.getElementById('height').value = img.height;
+      document.getElementById('width').value = Math.min(img.width, 96);
+      document.getElementById('height').value = Math.min(img.height, 96);
       document.getElementById('controls').classList.add('show');
-      document.querySelector('.upload-area p').textContent = '✅ 已加载: ' + img.width + 'x' + img.height;
+      document.querySelector('.upload-area').innerHTML = '<p>✅ 已加载: ' + img.width + ' x ' + img.height + '</p><p class="info">点击重新选择</p>';
     };
     img.src = ev.target.result;
   };
@@ -150,16 +238,57 @@ function doResize() {
   const w = parseInt(document.getElementById('width').value);
   const h = parseInt(document.getElementById('height').value);
   
-  const canvas = document.createElement('canvas');
+  // For smooth mode with large downscaling, use high-quality two-step resize
+  var srcW = originalImg.width;
+  var srcH = originalImg.height;
+  
+  // Create intermediate canvas for two-step downscale
+  var tempCanvas = document.createElement('canvas');
+  var tempCtx = tempCanvas.getContext('2d');
+  var curW = srcW;
+  var curH = srcH;
+  var tempImg = originalImg;
+  
+  // Two-step downscale: first halve repeatedly until close to target, then final resize
+  while (curW > w * 2 && curH > h * 2) {
+    curW = Math.floor(curW / 2);
+    curH = Math.floor(curH / 2);
+    tempCanvas.width = curW;
+    tempCanvas.height = curH;
+    tempCtx.imageSmoothingEnabled = true;
+    tempCtx.imageSmoothingQuality = 'high';
+    tempCtx.drawImage(tempImg, 0, 0, curW, curH);
+    var newImg = new Image();
+    newImg.src = tempCanvas.toDataURL('image/png');
+    // sync
+    tempImg = tempCanvas;
+  }
+  
+  // Final resize
+  var canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(originalImg, 0, 0, w, h);
+  var ctx = canvas.getContext('2d');
   
-  const dataUrl = canvas.toDataURL('image/png');
+  if (currentMode === 'pixel') {
+    ctx.imageSmoothingEnabled = false;
+  } else {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+  }
+  ctx.drawImage(tempImg, 0, 0, w, h);
+  
+  var dataUrl = canvas.toDataURL('image/png');
+  
+  // Show previews
+  var origDataUrl = originalImg.src;
+  document.getElementById('origImg').src = origDataUrl;
+  document.getElementById('origDim').textContent = srcW + ' x ' + srcH;
   document.getElementById('resultImg').src = dataUrl;
-  document.getElementById('resultInfo').textContent = w + ' x ' + h + ' px';
+  document.getElementById('resultDim').textContent = w + ' x ' + h;
+  document.getElementById('resultImg').style.width = Math.min(w * 2, 150) + 'px';
+  document.getElementById('resultImg').style.height = 'auto';
+  document.getElementById('resultInfo').textContent = '';
   document.getElementById('download').href = dataUrl;
   document.getElementById('download').classList.add('show');
   document.getElementById('preview').classList.add('show');
