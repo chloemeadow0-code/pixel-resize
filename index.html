@@ -49,14 +49,9 @@
   }
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; }
-  .mode-select {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+  .mode-select { display: flex; gap: 8px; }
   .mode-btn {
     flex: 1;
-    min-width: 120px;
     padding: 10px;
     border-radius: 8px;
     border: 2px solid #333;
@@ -65,16 +60,13 @@
     font-size: 13px;
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s;
   }
   .mode-btn.active {
     border-color: #ffb347;
     background: rgba(255,179,71,0.15);
     color: #ffb347;
   }
-  .preset-row {
-    display: flex; gap: 8px; flex-wrap: wrap;
-  }
+  .preset-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .preset-btn {
     width: auto;
     padding: 8px 14px;
@@ -90,7 +82,7 @@
     color: #ffb347;
     border-color: #ffb347;
   }
-  button.resize-btn {
+  .resize-btn {
     width: 100%;
     padding: 14px;
     border: none;
@@ -100,9 +92,8 @@
     font-size: 16px;
     font-weight: bold;
     cursor: pointer;
-    margin-top: 4px;
   }
-  button.resize-btn:active { background: #ffa030; }
+  .resize-btn:active { background: #ffa030; }
   .preview { width: 100%; max-width: 400px; margin-top: 16px; display: none; }
   .preview.show { display: block; }
   .preview-box {
@@ -111,20 +102,14 @@
     padding: 16px;
     display: flex;
     gap: 16px;
-    align-items: flex-start;
   }
   .preview-item { text-align: center; flex: 1; }
-  .preview-item img {
-    max-width: 100%;
-    border-radius: 8px;
-    border: 1px solid #333;
-  }
+  .preview-item img { max-width: 100%; border-radius: 8px; border: 1px solid #333; }
   .preview-item .label { font-size: 12px; color: #888; margin-bottom: 4px; }
   .preview-item .dim { font-size: 11px; color: #666; margin-top: 4px; }
   .info { font-size: 12px; color: #888; margin-top: 8px; }
   #download { display: none; }
   #download.show { display: block; }
-  .tip { font-size: 12px; color: #666; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -146,7 +131,6 @@
       <div class="mode-btn" id="modePixel" onclick="setMode('pixel')">像素画缩小<br><span style="font-size:11px;color:#666">保留像素边</span></div>
     </div>
   </div>
-
   <div>
     <label>目标尺寸</label>
     <div class="preset-row">
@@ -158,7 +142,6 @@
       <div class="preset-btn" onclick="setSize(512,512)">512</div>
     </div>
   </div>
-
   <div class="row">
     <div>
       <label>宽度 (px)</label>
@@ -169,7 +152,6 @@
       <input type="number" id="height" value="96" min="1">
     </div>
   </div>
-
   <button class="resize-btn" onclick="doResize()">✨ 缩小！</button>
 </div>
 
@@ -177,16 +159,15 @@
   <div class="preview-box">
     <div class="preview-item">
       <div class="label">原图</div>
-      <img id="origImg" style="max-height:150px;image-rendering:auto">
+      <img id="origImg" style="max-height:150px">
       <div class="dim" id="origDim"></div>
     </div>
     <div class="preview-item">
       <div class="label">缩小后</div>
-      <img id="resultImg" style="image-rendering:auto">
+      <img id="resultImg" style="max-width:150px">
       <div class="dim" id="resultDim"></div>
     </div>
   </div>
-  <p class="info" id="resultInfo"></p>
   <a id="download" href="#" download="resized.png">
     <button class="resize-btn" style="margin-top:12px">⬇️ 保存图片</button>
   </a>
@@ -205,9 +186,7 @@ function setMode(mode) {
 function setSize(w, h) {
   document.getElementById('width').value = w;
   document.getElementById('height').value = h;
-  document.querySelectorAll('.preset-btn').forEach(function(btn) {
-    btn.classList.remove('active');
-  });
+  document.querySelectorAll('.preset-btn').forEach(function(btn) { btn.classList.remove('active'); });
   event.target.classList.add('active');
 }
 
@@ -233,62 +212,68 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
   reader.readAsDataURL(file);
 });
 
+function stepDown(srcCanvas, targetW, targetH, smooth) {
+  // Create a NEW canvas each step to avoid clearing issues
+  var canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  var ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = smooth;
+  if (smooth) ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(srcCanvas, 0, 0, targetW, targetH);
+  return canvas;
+}
+
 function doResize() {
   if (!originalImg) return;
-  const w = parseInt(document.getElementById('width').value);
-  const h = parseInt(document.getElementById('height').value);
-  
-  // For smooth mode with large downscaling, use high-quality two-step resize
+  var w = parseInt(document.getElementById('width').value);
+  var h = parseInt(document.getElementById('height').value);
   var srcW = originalImg.width;
   var srcH = originalImg.height;
-  
-  // Create intermediate canvas for two-step downscale
-  var tempCanvas = document.createElement('canvas');
-  var tempCtx = tempCanvas.getContext('2d');
+  var smooth = (currentMode === 'smooth');
+
+  // Step 1: put original image into a canvas
+  var curCanvas = document.createElement('canvas');
+  curCanvas.width = srcW;
+  curCanvas.height = srcH;
+  var curCtx = curCanvas.getContext('2d');
+  curCtx.drawImage(originalImg, 0, 0);
   var curW = srcW;
   var curH = srcH;
-  var tempImg = originalImg;
-  
-  // Two-step downscale: first halve repeatedly until close to target, then final resize
-  while (curW > w * 2 && curH > h * 2) {
-    curW = Math.floor(curW / 2);
-    curH = Math.floor(curH / 2);
-    tempCanvas.width = curW;
-    tempCanvas.height = curH;
-    tempCtx.imageSmoothingEnabled = true;
-    tempCtx.imageSmoothingQuality = 'high';
-    tempCtx.drawImage(tempImg, 0, 0, curW, curH);
-    var newImg = new Image();
-    newImg.src = tempCanvas.toDataURL('image/png');
-    // sync
-    tempImg = tempCanvas;
+
+  // Step 2: progressive halving (smooth) until close to target
+  if (smooth) {
+    while (curW > w * 2 && curH > h * 2) {
+      curW = Math.floor(curW / 2);
+      curH = Math.floor(curH / 2);
+      curCanvas = stepDown(curCanvas, curW, curH, true);
+    }
   }
-  
-  // Final resize
-  var canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  var ctx = canvas.getContext('2d');
-  
-  if (currentMode === 'pixel') {
-    ctx.imageSmoothingEnabled = false;
+
+  // Step 3: final resize
+  if (smooth) {
+    curCanvas = stepDown(curCanvas, w, h, true);
   } else {
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    // For pixel mode: smooth down to 2x first, then nearest neighbor
+    if (srcW > w * 4) {
+      var midW = w * 2;
+      var midH = h * 2;
+      while (curW > midW * 2 && curH > midH * 2) {
+        curW = Math.floor(curW / 2);
+        curH = Math.floor(curH / 2);
+        curCanvas = stepDown(curCanvas, curW, curH, true);
+      }
+      curCanvas = stepDown(curCanvas, midW, midH, true);
+    }
+    curCanvas = stepDown(curCanvas, w, h, false);
   }
-  ctx.drawImage(tempImg, 0, 0, w, h);
-  
-  var dataUrl = canvas.toDataURL('image/png');
-  
-  // Show previews
-  var origDataUrl = originalImg.src;
-  document.getElementById('origImg').src = origDataUrl;
+
+  var dataUrl = curCanvas.toDataURL('image/png');
+
+  document.getElementById('origImg').src = originalImg.src;
   document.getElementById('origDim').textContent = srcW + ' x ' + srcH;
   document.getElementById('resultImg').src = dataUrl;
   document.getElementById('resultDim').textContent = w + ' x ' + h;
-  document.getElementById('resultImg').style.width = Math.min(w * 2, 150) + 'px';
-  document.getElementById('resultImg').style.height = 'auto';
-  document.getElementById('resultInfo').textContent = '';
   document.getElementById('download').href = dataUrl;
   document.getElementById('download').classList.add('show');
   document.getElementById('preview').classList.add('show');
